@@ -6,7 +6,7 @@ Changes from 1_run_eval.py:
   - message_limit raised from 30 to 150
 
 Usage:
-    python 2_run_eval.py
+    python 3_run_eval_revised.py
 """
 
 from dotenv import load_dotenv

@@ -4,9 +4,9 @@ Making SWE-Bench agent evaluation more informative than binary pass/fail, by ext
 
 ## Setup
 
-Requires Docker Desktop, WSL2 with Ubuntu, and Python 3.10+.
+Requires Docker Desktop, WSL2 with Ubuntu, and Python 3.10+. Docker Desktop's WSL integration must be enabled for the Ubuntu distro (Settings > Resources > WSL Integration).
 
-The eval pipeline must run under WSL (Linux), because the `swebench` scorer depends on the `resource` module which is not available on Windows.
+The eval pipeline runs under WSL (Linux) because the `swebench` scorer depends on Python's `resource` module, which is Unix-only. All scripts should be run from WSL, not Windows directly.
 
 ### Steps
 
@@ -16,10 +16,11 @@ The eval pipeline must run under WSL (Linux), because the `swebench` scorer depe
    INSPECT_EVAL_MODEL=anthropic/claude-sonnet-4-6
    ```
 
-2. Set up a Python venv in WSL and install dependencies:
+2. Set up a Python venv **inside WSL** (not on the Windows-mounted filesystem, which causes venv issues):
    ```bash
    python3 -m venv ~/swebench-venv
    source ~/swebench-venv/bin/activate
+   cd /mnt/c/Users/<you>/Documents/'AISI Work Trial'
    pip install -r requirements.txt
    ```
 
@@ -35,7 +36,7 @@ As of `inspect-ai==0.3.201` / `inspect-evals==0.6.0`, the SWE-bench eval sets `b
 
 ## Pipeline
 
-Scripts are numbered in pipeline order:
+Scripts are numbered in execution order:
 
 | Script | Purpose |
 |---|---|
@@ -45,18 +46,21 @@ Scripts are numbered in pipeline order:
 | `2B_viewer.py` | Launch Inspect log viewer for browsing transcripts |
 | `2C_flaky_test.py` | Reproduce pre-existing test failure in matplotlib Docker image |
 | `3_run_eval_revised.py` | Run 2: increased message limit (150), rate-limit-safe concurrency |
+| `4_analyse.py` | Performance summary with flaky-test adjustment and time-to-fix breakdown |
+| `5_judge_tests.py` | LLM judge: classify FAIL_TO_PASS tests as required vs implementation-specific |
+| `6_analyse.py` | Combined analysis: raw, flaky-adjusted, and judge-adjusted scoring |
 
 ## Tasks
 
 5 instances from SWE-Bench Verified, one per repo:
 
-| Instance | Repo | Difficulty |
-|---|---|---|
-| `pylint-dev__pylint-4551` | pylint | <15 min fix |
-| `psf__requests-1142` | requests | <15 min fix |
-| `matplotlib__matplotlib-20859` | matplotlib | <15 min fix |
-| `pytest-dev__pytest-5809` | pytest | <15 min fix |
-| `scikit-learn__scikit-learn-13779` | scikit-learn | <15 min fix |
+| Instance | Repo |
+|---|---|
+| `pylint-dev__pylint-4551` | pylint |
+| `psf__requests-1142` | requests |
+| `matplotlib__matplotlib-20859` | matplotlib |
+| `pytest-dev__pytest-5809` | pytest |
+| `scikit-learn__scikit-learn-13779` | scikit-learn |
 
 ## Results
 
@@ -72,15 +76,21 @@ Scripts are numbered in pipeline order:
 
 **Overall: 68% raw, 80% adjusted (correcting for flaky test)**
 
+### Run 2 (message_limit=150)
+
+Rerun with `message_limit=150` and `max_connections=2` (to stay under Anthropic rate limits). Run `python 6_analyse.py` to see full results including judge-adjusted scores.
+
 ### Scoring artifact: matplotlib flaky test
 
 `test_warn_big_data_best_loc` fails deterministically (0/20 and 0/100 in isolated runs) in the unmodified Docker image. The test expects a `UserWarning` about large data in `_find_best_position`, but the warning is never emitted in this environment. The agent's patch is correct in all 5 epochs (FAIL_TO_PASS test passes, 87/88 PASS_TO_PASS tests pass), but the pre-existing failure causes SWE-Bench to score 3 epochs as failures.
 
-This is reproducible via `python 2C_flaky_test.py`.
+Reproducible via `python 2C_flaky_test.py`.
 
-### Run 2 (message_limit=150) -- in progress
+### LLM judge for test relevance
 
-Rerunning all tasks with `message_limit=150` and `max_connections=2` (to avoid Anthropic rate limits). The main question is whether pylint can be solved with more steps.
+`5_judge_tests.py` uses Claude Opus to classify each FAIL_TO_PASS test as REQUIRED, IMPLEMENTATION_SPECIFIC, UNRELATED, or UNCLEAR. This provides a second axis of scoring adjustment beyond flaky-test correction: a fix that passes all *required* tests but fails an *implementation-specific* test may still be a valid solution.
+
+Results are aggregated over 5 judge runs (majority vote at threshold 3/5). See `6_analyse.py` for the combined scoring table.
 
 ## Technical details
 

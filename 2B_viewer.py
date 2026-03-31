@@ -3,13 +3,8 @@ Launch the Inspect log viewer for browsing evaluation results.
 
 Opens a local web server at http://127.0.0.1:7575.
 
-Usage (from WSL):
+Usage:
     python 2B_viewer.py
-
-Or from Windows:
-    wsl -d Ubuntu -- bash -c "source ~/swebench-venv/bin/activate && \
-        cd /mnt/c/Users/Alexander_Framework/Documents/'AISI Work Trial' && \
-        python 2B_viewer.py"
 """
 
 import subprocess

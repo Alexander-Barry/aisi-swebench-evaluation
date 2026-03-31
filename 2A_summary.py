@@ -16,13 +16,15 @@ from pathlib import Path
 LOG_DIR = Path("logs")
 
 
+LOG_FILE = LOG_DIR / "2026-03-30T21-21-34-00-00_swe-bench_bA6VJtRTkobVbhZRuhF7Zu.eval"
+
+
 def find_log():
-    """Find the most recent .eval log file."""
-    evals = sorted(LOG_DIR.glob("*.eval"))
-    if not evals:
-        print("No .eval files found in logs/", file=sys.stderr)
+    """Return the Run 1 log file."""
+    if not LOG_FILE.exists():
+        print(f"{LOG_FILE} not found", file=sys.stderr)
         sys.exit(1)
-    return evals[-1]
+    return LOG_FILE
 
 
 def load_samples(log_path):
