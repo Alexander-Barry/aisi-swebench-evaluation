@@ -14,6 +14,11 @@ Thumbs.db
 .vscode/
 .idea/
 
+# Claude Code
+CLAUDE.md
+
+# Venv
+.venv/
+
 # Output artifacts
 results/
-logs/
